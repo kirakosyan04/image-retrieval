@@ -106,6 +106,74 @@ print(
     image_embeddings.shape
 )
 
+print("\nLoading CIFAR-10 test set...")
+
+test_dataset = CIFAR10(
+    root="./data",
+    train=False,
+    download=True
+)
+
+print("Test images:", len(test_dataset))
+
+print("Generating test image embeddings...")
+
+test_embeddings = []
+
+for start in tqdm(
+    range(
+        0,
+        len(test_dataset),
+        BATCH_SIZE
+    )
+):
+
+    images = [
+        test_dataset[i][0]
+        for i in range(
+            start,
+            min(
+                start + BATCH_SIZE,
+                len(test_dataset)
+            )
+        )
+    ]
+
+    inputs = processor(
+        images=images,
+        return_tensors="pt"
+    )
+
+    with torch.no_grad():
+
+        vision_outputs = model.vision_model(
+            pixel_values=inputs["pixel_values"]
+        )
+
+        test_features = model.visual_projection(
+            vision_outputs.pooler_output
+        )
+
+    test_features = test_features / (
+        test_features.norm(
+            dim=-1,
+            keepdim=True
+        )
+    )
+
+    test_embeddings.append(
+        test_features.cpu().numpy()
+    )
+
+
+test_embeddings = np.vstack(
+    test_embeddings
+).astype("float32")
+
+print(
+    "Test embedding matrix:",
+    test_embeddings.shape
+)
 
 def get_text_embedding(query):
 
@@ -238,56 +306,86 @@ while True:
         similarities
     )
 
+print("\nEvaluating image retrieval...")
 
-print("\nEvaluating retrieval...")
-
-test_queries = {
-    "airplane": 0,
-    "car": 1,
-    "bird": 2,
-    "cat": 3,
-    "deer": 4,
-    "dog": 5,
-    "frog": 6,
-    "horse": 7,
-    "ship": 8,
-    "truck": 9
-}
+recall_at_1 = []
+recall_at_5 = []
+recall_at_10 = []
+precision_at_10 = []
 
 
-correct = 0
+for query_idx in tqdm(
+    range(len(test_dataset))
+):
 
+    query_embedding = test_embeddings[
+        query_idx
+    ]
 
-for query, target_class in test_queries.items():
-
-    top_indices, _ = search_images(
-        query
+    similarities = (
+        image_embeddings @ query_embedding
     )
 
-    top_classes = [
+    top_indices = np.argsort(
+        similarities
+    )[::-1][:TOP_K]
+
+    query_class = test_dataset[
+        query_idx
+    ][1]
+
+    retrieved_classes = [
         dataset[idx][1]
         for idx in top_indices
     ]
 
-    success = (
-        target_class in top_classes
+    recall_at_1.append(
+        int(
+            query_class
+            in retrieved_classes[:1]
+        )
     )
 
-    if success:
-        correct += 1
+    recall_at_5.append(
+        int(
+            query_class
+            in retrieved_classes[:5]
+        )
+    )
 
-    print(
-        f"{query:10s} -> "
-        f"{'PASS' if success else 'FAIL'}"
+    recall_at_10.append(
+        int(
+            query_class
+            in retrieved_classes[:10]
+        )
+    )
+
+    correct = sum(
+        cls == query_class
+        for cls in retrieved_classes
+    )
+
+    precision_at_10.append(
+        correct / TOP_K
     )
 
 
-recall_at_10 = (
-    correct /
-    len(test_queries)
+print(
+    f"Recall@1: "
+    f"{np.mean(recall_at_1):.2%}"
 )
 
 print(
-    f"\nRecall@10: "
-    f"{recall_at_10:.2%}"
+    f"Recall@5: "
+    f"{np.mean(recall_at_5):.2%}"
+)
+
+print(
+    f"Recall@10: "
+    f"{np.mean(recall_at_10):.2%}"
+)
+
+print(
+    f"Precision@10: "
+    f"{np.mean(precision_at_10):.2%}"
 )
