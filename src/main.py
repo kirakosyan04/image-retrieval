@@ -323,7 +323,7 @@ for query_idx in tqdm(range(len(test_dataset))):
 
     similarities = image_embeddings @ query_embedding
 
-    top_indices = np.argsort(similarities)[::-1][:10]
+    top_indices = np.argsort(similarities)[::-1][:TOP_K]
 
     query_class = test_dataset[query_idx][1]
 
