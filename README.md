@@ -4,7 +4,7 @@ A multimodal image retrieval system that uses a pretrained CLIP model to retriev
 
 ## Overview
 
-The system converts images and text into a shared 512-dimensional embedding space using CLIP. It then uses cosine similarity and vector search to retrieve the most relevant images for a given text query.
+The system converts images and text into a shared 512-dimensional embedding space using CLIP. It then uses cosine similarity to retrieve the most relevant images for a given text query.
 
 The retrieval database contains 10,000 CIFAR-10 training images, while the separate 10,000-image test set is used to evaluate retrieval performance on previously unseen images.
 
@@ -72,7 +72,6 @@ Each test image is converted into a CLIP embedding and used to retrieve the 10 m
 * PyTorch
 * Hugging Face Transformers
 * CLIP
-* FAISS
 * NumPy
 * Matplotlib
 * CIFAR-10
@@ -91,7 +90,6 @@ The system converts the text query into a CLIP embedding and retrieves the top 1
 
 ```text
 image-retrieval/
-├── data/
 ├── src/
 │   └── main.py
 ├── README.md
