@@ -85,6 +85,7 @@ for start in tqdm(
             vision_outputs.pooler_output
         )
 
+
     image_features = image_features / (
         image_features.norm(
             dim=-1,
@@ -114,11 +115,9 @@ test_dataset = CIFAR10(
     download=True
 )
 
-print("Test images:", len(test_dataset))
+test_embeddings = []
 
 print("Generating test image embeddings...")
-
-test_embeddings = []
 
 for start in tqdm(
     range(
@@ -150,19 +149,19 @@ for start in tqdm(
             pixel_values=inputs["pixel_values"]
         )
 
-        test_features = model.visual_projection(
+        features = model.visual_projection(
             vision_outputs.pooler_output
         )
 
-    test_features = test_features / (
-        test_features.norm(
+    features = features / (
+        features.norm(
             dim=-1,
             keepdim=True
         )
     )
 
     test_embeddings.append(
-        test_features.cpu().numpy()
+        features.cpu().numpy()
     )
 
 
@@ -306,6 +305,11 @@ while True:
         similarities
     )
 
+
+# --------------------------------------------------
+# Evaluation
+# --------------------------------------------------
+
 print("\nEvaluating image retrieval...")
 
 recall_at_1 = []
@@ -313,26 +317,15 @@ recall_at_5 = []
 recall_at_10 = []
 precision_at_10 = []
 
+for query_idx in tqdm(range(len(test_dataset))):
 
-for query_idx in tqdm(
-    range(len(test_dataset))
-):
+    query_embedding = test_embeddings[query_idx]
 
-    query_embedding = test_embeddings[
-        query_idx
-    ]
+    similarities = image_embeddings @ query_embedding
 
-    similarities = (
-        image_embeddings @ query_embedding
-    )
+    top_indices = np.argsort(similarities)[::-1][:10]
 
-    top_indices = np.argsort(
-        similarities
-    )[::-1][:TOP_K]
-
-    query_class = test_dataset[
-        query_idx
-    ][1]
+    query_class = test_dataset[query_idx][1]
 
     retrieved_classes = [
         dataset[idx][1]
@@ -340,24 +333,15 @@ for query_idx in tqdm(
     ]
 
     recall_at_1.append(
-        int(
-            query_class
-            in retrieved_classes[:1]
-        )
+        int(query_class in retrieved_classes[:1])
     )
 
     recall_at_5.append(
-        int(
-            query_class
-            in retrieved_classes[:5]
-        )
+        int(query_class in retrieved_classes[:5])
     )
 
     recall_at_10.append(
-        int(
-            query_class
-            in retrieved_classes[:10]
-        )
+        int(query_class in retrieved_classes[:10])
     )
 
     correct = sum(
@@ -365,27 +349,10 @@ for query_idx in tqdm(
         for cls in retrieved_classes
     )
 
-    precision_at_10.append(
-        correct / TOP_K
-    )
+    precision_at_10.append(correct / 10)
 
 
-print(
-    f"Recall@1: "
-    f"{np.mean(recall_at_1):.2%}"
-)
-
-print(
-    f"Recall@5: "
-    f"{np.mean(recall_at_5):.2%}"
-)
-
-print(
-    f"Recall@10: "
-    f"{np.mean(recall_at_10):.2%}"
-)
-
-print(
-    f"Precision@10: "
-    f"{np.mean(precision_at_10):.2%}"
-)
+print(f"Recall@1: {np.mean(recall_at_1):.2%}")
+print(f"Recall@5: {np.mean(recall_at_5):.2%}")
+print(f"Recall@10: {np.mean(recall_at_10):.2%}")
+print(f"Precision@10: {np.mean(precision_at_10):.2%}")
