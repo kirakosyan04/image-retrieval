@@ -67,11 +67,4 @@ image-retrieval/
 ├── README.md
 ├── .gitignore
 └── requirements.txt
-
-## Future Improvements
-
--FAISS-based scalable vector search
--Larger image datasets
--GPU acceleration
--Web interface
--More advanced retrieval evaluation
+ ``` 
